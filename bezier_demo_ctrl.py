@@ -9,35 +9,6 @@ c = 2
 # m = slangpy.loadModule('bezier_compute.slang', defines={"NUM_CTRL_PTS": N, "DIM":c})
 m = slangpy.loadModule('bezier.slang', defines={"NUM_CTRL_PTS": N, "DIM":c})
 
-
-def plot_sdf(num_pts, control_pts, savedir):
-	"""
-	num_pts : int - compute sdf for num_pts x num_pts points
-	control_pts : torch tensor (N,2) on GPU
-	"""
-
-	xmin, xmax = torch.min(control_pts[:,0]), torch.max(control_pts[:,0])
-	ymin, ymax = torch.min(control_pts[:,1]), torch.max(control_pts[:,1])
-	px = torch.linspace(xmin.item()-2, xmax.item()+2, num_pts)
-	py = torch.linspace(ymin.item()-2, ymax.item()+2, num_pts)
-	print(xmin, xmax, ymin, ymax)
-	# Create the meshgrid
-	x, y = torch.meshgrid(px, py.flip(dims=[0]), indexing='ij')  # 'i
-	xy = torch.stack([x,y], dim=-1 ).view(-1,2).cuda()
-	sdf_mats = torch.zeros(xy.shape[0], c*(N-1), c*(N-1)).cuda()
-
-	# m.bezier2DSDFtest(xy=xy, control_pts=control_pts, output=sdf).launchRaw(blockSize=(1024, 1, 1), gridSize=(1024, 1, 1))
-	m.bezier2DSDF(xy=xy, control_pts=control_pts, output=sdf_mats).launchRaw(blockSize=(256, 1, 1), gridSize=(64, 1, 1))
-	sdf = torch.linalg.det(sdf_mats)
-	sdf = torch.sgn(sdf) * torch.sqrt(torch.abs(sdf))
-
-	sdf_plot = sdf.view(num_pts, num_pts).cpu().numpy()
-	plt.figure()
-	plt.imshow(sdf_plot.T, cmap='inferno')
-	plt.title(f'Implicitized SDF of Bezier Curve with {N} Control Points')
-	plt.colorbar()
-	plt.savefig(os.path.join(savedir, f'Bcurve_{N}_SDF.png'))
-
 def heart(t):
     t = t*2*torch.pi
     x = 16*(torch.sin(t))**3
@@ -157,21 +128,3 @@ plt.title('Loss Curve')
 plt.xlabel('Iterations')
 plt.ylabel('Loss Value')
 plt.savefig(os.path.join(savedir, 'Loss_Curve.png'))
-
-plot_sdf(100, opt_param, savedir)
-
-# plt.scatter(0.5, 0.6)
-# plt.text(0.52, 0.6, 'Initialization')
-# plt.title(f'Bezier Curve with {N} Control Points')
-# breakpoint()
-# gt_sdf = compute_sdf(gt_control_pts, 1, [0.0, 1.0], [0.0, 1.0])
-
-# sdf = compute_sdf(control_pts, 1, [0.5, 0.6], [0.5, 0.6])
-# loss = sdf.backward()
-# print(control_pts.grad)
-# print(xy.grad)
-# output = torch.zeros((num_pts,2), dtype=torch.float).cuda()
-
-# # Number of threads launched = blockSize * gridSize
-# m.bezier2D(t=t, control_pts=control_pts, output=output).launchRaw(blockSize=(32, 1, 1), gridSize=(64, 1, 1))
-
